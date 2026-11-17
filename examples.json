@@ -1,0 +1,17 @@
+[
+  {"text": "I forgot my password and need to reset it", "category": "account"},
+  {"text": "I cannot log in to my account", "category": "account"},
+  {"text": "My account is locked after too many login attempts", "category": "account"},
+  {"text": "Please change the email address on my profile", "category": "account"},
+  {"text": "I lost access to my two-factor authentication device", "category": "account"},
+  {"text": "I was charged twice for my subscription", "category": "billing"},
+  {"text": "Please send a copy of my invoice", "category": "billing"},
+  {"text": "I need a refund for a duplicate payment", "category": "billing"},
+  {"text": "My credit card payment was declined", "category": "billing"},
+  {"text": "Why did the price on my monthly bill increase", "category": "billing"},
+  {"text": "The app crashes every time it opens", "category": "technical"},
+  {"text": "The file upload fails with an error", "category": "technical"},
+  {"text": "The dashboard freezes when loading the report", "category": "technical"},
+  {"text": "The page takes a long time to load", "category": "technical"},
+  {"text": "The export button is broken and the download never starts", "category": "technical"}
+]
