@@ -92,3 +92,15 @@ export async function* streamMessage(message, conversationId) {
     reader.releaseLock()
   }
 }
+
+export async function getConversations() {
+  const response = await fetch('/api/conversations')
+
+  if (!response.ok) {
+    throw new Error('Could not load conversations')
+  }
+
+  const data = await response.json()
+
+  return data.conversations
+}

@@ -82,3 +82,17 @@ def conversation_exists(conversation_id: int) -> bool:
         return row is not None
     finally:
         connection.close()
+
+def get_conversations():
+    connection = get_connection()
+
+    try:
+        rows = connection.execute("""
+            SELECT id, title, created_at
+            FROM conversations
+            ORDER BY id DESC
+        """).fetchall()
+
+        return [dict(row) for row in rows]
+    finally:
+        connection.close()

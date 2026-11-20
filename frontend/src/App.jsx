@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   createConversation,
+  getConversations,
   getMessages,
   streamMessage
 } from './api'
@@ -9,65 +10,117 @@ import './App.css'
 function App() {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
+  const [conversations, setConversations] = useState([])
   const [conversationId, setConversationId] = useState(null)
   const [loading, setLoading] = useState(false)
   const [initializing, setInitializing] = useState(true)
-  const [startupError, setStartupError] = useState('')
+  const [error, setError] = useState('')
 
   const messagesEndRef = useRef(null)
   const initializedRef = useRef(false)
 
-  // Load or create a conversation on startup
+  // Load existing conversations when the application starts
   useEffect(() => {
     if (initializedRef.current) return
     initializedRef.current = true
 
-    async function initializeChat() {
+    async function initialize() {
       try {
-        const savedId = localStorage.getItem('conversation_id')
+        const chats = await getConversations()
+        setConversations(chats)
 
-        if (savedId) {
-          try {
-            const saved = await getMessages(savedId)
-
-            setConversationId(Number(savedId))
-            setMessages(saved.map(item => ({
-              role: item.role,
-              text: item.content
-            })))
-
-            return
-          } catch (error) {
-            console.warn('Could not restore chat:', error)
-          }
-        }
-
-        const conversation = await createConversation()
-
-        localStorage.setItem(
-          'conversation_id',
-          String(conversation.id)
+        const savedId = Number(
+          localStorage.getItem('conversation_id')
         )
 
-        setConversationId(conversation.id)
-      } catch (error) {
-        console.error(error)
-        setStartupError('Could not initialize conversation.')
+        const existing = chats.find(chat => chat.id === savedId)
+
+        if (existing) {
+          const savedMessages = await getMessages(existing.id)
+
+          setConversationId(existing.id)
+          setMessages(savedMessages.map(item => ({
+            role: item.role,
+            text: item.content
+          })))
+        } else {
+          const chat = await createConversation()
+
+          setConversations(prev => [chat, ...prev])
+          setConversationId(chat.id)
+
+          localStorage.setItem(
+            'conversation_id',
+            String(chat.id)
+          )
+        }
+      } catch (err) {
+        console.error(err)
+        setError('Could not initialize the application.')
       } finally {
         setInitializing(false)
       }
     }
 
-    initializeChat()
+    initialize()
   }, [])
 
-  // Scroll to the latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: 'auto',
       block: 'end'
     })
   }, [messages])
+
+  async function handleNewChat() {
+    if (loading || initializing) return
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const chat = await createConversation()
+
+      setConversations(prev => [chat, ...prev])
+      setConversationId(chat.id)
+      setMessages([])
+      setMessage('')
+
+      localStorage.setItem(
+        'conversation_id',
+        String(chat.id)
+      )
+    } catch (err) {
+      console.error(err)
+      setError('Could not create conversation.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSelectChat(id) {
+    if (loading || initializing || id === conversationId) return
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const saved = await getMessages(id)
+
+      setConversationId(id)
+      setMessages(saved.map(item => ({
+        role: item.role,
+        text: item.content
+      })))
+
+      localStorage.setItem('conversation_id', String(id))
+    } catch (err) {
+      console.error(err)
+      setError('Could not load conversation.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -84,6 +137,7 @@ function App() {
 
     setMessage('')
     setLoading(true)
+    setError('')
 
     try {
       for await (const chunk of streamMessage(
@@ -92,20 +146,19 @@ function App() {
       )) {
         setMessages(prev => {
           const updated = [...prev]
-          const lastIndex = updated.length - 1
+          const index = updated.length - 1
 
-          updated[lastIndex] = {
-            ...updated[lastIndex],
-            text: updated[lastIndex].text + chunk
+          updated[index] = {
+            ...updated[index],
+            text: updated[index].text + chunk
           }
 
           return updated
         })
       }
-    } catch (error) {
-      console.error(error)
+    } catch (err) {
+      console.error(err)
 
-      // Reload the database state after a failed stream
       try {
         const saved = await getMessages(conversationId)
 
@@ -116,17 +169,11 @@ function App() {
           })),
           {
             role: 'error',
-            text: error.message || 'Something went wrong.'
+            text: err.message || 'AI service unavailable.'
           }
         ])
       } catch {
-        setMessages(prev => [
-          ...prev,
-          {
-            role: 'error',
-            text: 'Could not reload conversation.'
-          }
-        ])
+        setError('Could not restore conversation.')
       }
     } finally {
       setLoading(false)
@@ -134,53 +181,81 @@ function App() {
   }
 
   return (
-    <main className="chat-container">
-      <h1>AI Project Starter</h1>
-      <p className="subtitle">My first AI application</p>
+    <div className="app-layout">
+      <aside className="sidebar">
+        <h2>Conversations</h2>
 
-      <div className="messages">
-        {initializing && <p>Loading conversation...</p>}
+        <button
+          className="new-chat-btn"
+          onClick={handleNewChat}
+          disabled={loading || initializing}
+        >
+          + New Chat
+        </button>
 
-        {startupError && (
-          <p className="message error">{startupError}</p>
-        )}
+        <div className="conversation-list">
+          {conversations.map(chat => (
+            <button
+              key={chat.id}
+              className={`conversation-item ${
+                chat.id === conversationId ? 'active' : ''
+              }`}
+              onClick={() => handleSelectChat(chat.id)}
+              disabled={loading || initializing}
+            >
+              {chat.title} #{chat.id}
+            </button>
+          ))}
+        </div>
+      </aside>
 
-        {!initializing && !startupError &&
-          messages.length === 0 && (
+      <main className="chat-container">
+        <h1>AI Project Starter</h1>
+        <p className="subtitle">My first AI application</p>
+
+        {error && <p className="message error">{error}</p>}
+
+        <div className="messages">
+          {initializing && (
+            <p className="empty">Loading conversations...</p>
+          )}
+
+          {!initializing && messages.length === 0 && (
             <p className="empty">Ask me anything!</p>
           )}
 
-        {messages.map((item, index) => (
-          <div
-            key={index}
-            className={`message ${item.role}`}
+          {messages.map((item, index) => (
+            <div
+              key={index}
+              className={`message ${item.role}`}
+            >
+              {item.text || (
+                <span className="loading">Thinking...</span>
+              )}
+            </div>
+          ))}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <input
+            type="text"
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder="Type your message..."
+            disabled={loading || initializing || !conversationId}
+          />
+
+          <button
+            type="submit"
+            disabled={loading || initializing || !conversationId}
           >
-            {item.text || (
-              <span className="loading">Thinking...</span>
-            )}
-          </div>
-        ))}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={message}
-          onChange={e => setMessage(e.target.value)}
-          placeholder="Type your message..."
-          disabled={loading || initializing || !conversationId}
-        />
-
-        <button
-          type="submit"
-          disabled={loading || initializing || !conversationId}
-        >
-          {loading ? 'Thinking...' : 'Send'}
-        </button>
-      </form>
-    </main>
+            {loading ? 'Thinking...' : 'Send'}
+          </button>
+        </form>
+      </main>
+    </div>
   )
 }
 

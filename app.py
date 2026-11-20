@@ -17,6 +17,15 @@ from database import (
     conversation_exists,
 )
 
+from database import (
+    init_db,
+    create_conversation,
+    get_conversations,
+    get_messages,
+    save_message,
+    conversation_exists,
+)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -123,9 +132,15 @@ def new_conversation():
         "title": "New Chat"
     }
 
+@app.get("/conversations")
+def list_conversations():
+    return {"conversations": get_conversations()}
+
 
 @app.get("/conversations/{conversation_id}/messages")
 def conversation_messages(conversation_id: int):
     messages = get_messages(conversation_id)
 
     return {"messages": messages}
+
+
