@@ -1,12 +1,44 @@
-const API_URL = '/api/chat'
 
-export async function* streamMessage(message, history = []) {
-  const response = await fetch(API_URL, {
+const API_BASE = '/api'
+
+// Create a new conversation
+export async function createConversation() {
+  const response = await fetch(`${API_BASE}/conversations`, {
+    method: 'POST'
+  })
+
+  if (!response.ok) {
+    throw new Error('Could not create conversation')
+  }
+
+  return response.json()
+}
+
+// Load saved messages
+export async function getMessages(conversationId) {
+  const response = await fetch(
+    `${API_BASE}/conversations/${conversationId}/messages`
+  )
+
+  if (!response.ok) {
+    throw new Error('Could not load conversation')
+  }
+
+  const data = await response.json()
+  return data.messages
+}
+
+// Stream a new AI response
+export async function* streamMessage(message, conversationId) {
+  const response = await fetch(`${API_BASE}/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ message, history })
+    body: JSON.stringify({
+      message,
+      conversation_id: conversationId
+    })
   })
 
   if (!response.ok) {
@@ -19,7 +51,6 @@ export async function* streamMessage(message, history = []) {
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
-
   let buffer = ''
 
   try {
@@ -55,7 +86,7 @@ export async function* streamMessage(message, history = []) {
       }
     }
 
-    throw new Error('The AI stream ended unexpectedly')
+    throw new Error('Stream ended unexpectedly')
   } finally {
     await reader.cancel()
     reader.releaseLock()

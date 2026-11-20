@@ -1,15 +1,67 @@
 import { useEffect, useRef, useState } from 'react'
-import { streamMessage } from './api'
+import {
+  createConversation,
+  getMessages,
+  streamMessage
+} from './api'
 import './App.css'
 
 function App() {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
+  const [conversationId, setConversationId] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [initializing, setInitializing] = useState(true)
+  const [startupError, setStartupError] = useState('')
 
   const messagesEndRef = useRef(null)
+  const initializedRef = useRef(false)
 
-  // Scroll down whenever messages change
+  // Load or create a conversation on startup
+  useEffect(() => {
+    if (initializedRef.current) return
+    initializedRef.current = true
+
+    async function initializeChat() {
+      try {
+        const savedId = localStorage.getItem('conversation_id')
+
+        if (savedId) {
+          try {
+            const saved = await getMessages(savedId)
+
+            setConversationId(Number(savedId))
+            setMessages(saved.map(item => ({
+              role: item.role,
+              text: item.content
+            })))
+
+            return
+          } catch (error) {
+            console.warn('Could not restore chat:', error)
+          }
+        }
+
+        const conversation = await createConversation()
+
+        localStorage.setItem(
+          'conversation_id',
+          String(conversation.id)
+        )
+
+        setConversationId(conversation.id)
+      } catch (error) {
+        console.error(error)
+        setStartupError('Could not initialize conversation.')
+      } finally {
+        setInitializing(false)
+      }
+    }
+
+    initializeChat()
+  }, [])
+
+  // Scroll to the latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: 'auto',
@@ -20,18 +72,10 @@ function App() {
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (!message.trim() || loading) return
+    if (!message.trim() || loading || !conversationId) return
 
     const userMessage = message.trim()
 
-    // Save previous conversation history
-    const history = messages
-      .filter(item =>
-        item.role === 'user' || item.role === 'assistant'
-      )
-      .slice(-20)
-
-    // Add the user message and an empty AI message
     setMessages(prev => [
       ...prev,
       { role: 'user', text: userMessage },
@@ -42,7 +86,10 @@ function App() {
     setLoading(true)
 
     try {
-      for await (const chunk of streamMessage(userMessage, history)) {
+      for await (const chunk of streamMessage(
+        userMessage,
+        conversationId
+      )) {
         setMessages(prev => {
           const updated = [...prev]
           const lastIndex = updated.length - 1
@@ -58,20 +105,29 @@ function App() {
     } catch (error) {
       console.error(error)
 
-      setMessages(prev => {
-        const updated = [...prev]
+      // Reload the database state after a failed stream
+      try {
+        const saved = await getMessages(conversationId)
 
-        // Remove any incomplete AI answer
-        updated.pop()
-
-        return [
-          ...updated,
+        setMessages([
+          ...saved.map(item => ({
+            role: item.role,
+            text: item.content
+          })),
           {
             role: 'error',
             text: error.message || 'Something went wrong.'
           }
-        ]
-      })
+        ])
+      } catch {
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'error',
+            text: 'Could not reload conversation.'
+          }
+        ])
+      }
     } finally {
       setLoading(false)
     }
@@ -83,9 +139,16 @@ function App() {
       <p className="subtitle">My first AI application</p>
 
       <div className="messages">
-        {messages.length === 0 && (
-          <p className="empty">Ask me anything!</p>
+        {initializing && <p>Loading conversation...</p>}
+
+        {startupError && (
+          <p className="message error">{startupError}</p>
         )}
+
+        {!initializing && !startupError &&
+          messages.length === 0 && (
+            <p className="empty">Ask me anything!</p>
+          )}
 
         {messages.map((item, index) => (
           <div
@@ -107,10 +170,13 @@ function App() {
           value={message}
           onChange={e => setMessage(e.target.value)}
           placeholder="Type your message..."
-          disabled={loading}
+          disabled={loading || initializing || !conversationId}
         />
 
-        <button type="submit" disabled={loading}>
+        <button
+          type="submit"
+          disabled={loading || initializing || !conversationId}
+        >
           {loading ? 'Thinking...' : 'Send'}
         </button>
       </form>
