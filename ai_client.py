@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from product_tools import get_product
+
 load_dotenv()
 
 
@@ -40,9 +42,17 @@ def stream_gemini(message: str, history: list):
 
     try:
         stream = client.models.generate_content_stream(
-            model=os.environ["GEMINI_MODEL"],
-            contents=contents
+            model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
+            contents=contents,
+            config=types.GenerateContentConfig(
+                tools=[get_product],
+                system_instruction=(
+                    "You are a helpful shopping assistant. "
+                    "Use get_product when users ask about products "
+                    "in the catalog. Never invent prices or stock."
         )
+    )
+)
 
         for chunk in stream:
             if chunk.text:
