@@ -96,3 +96,14 @@ def get_conversations():
         return [dict(row) for row in rows]
     finally:
         connection.close()
+
+def update_conversation_title(conversation_id: int, title: str):
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE conversations
+            SET title = ?
+            WHERE id = ?
+            """,
+            (title, conversation_id)
+        )

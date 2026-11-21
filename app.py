@@ -12,19 +12,13 @@ from contextlib import asynccontextmanager
 from database import (
     init_db,
     create_conversation,
-    get_messages,
-    save_message,
-    conversation_exists,
-)
-
-from database import (
-    init_db,
-    create_conversation,
     get_conversations,
     get_messages,
     save_message,
     conversation_exists,
+    update_conversation_title
 )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -97,6 +91,10 @@ def chat(request: ChatRequest):
                 "assistant",
                 answer
             )
+
+            if not previous_messages:
+                title = request.message.strip()[:50]
+                update_conversation_title(request.conversation_id, title)
 
             yield 'data: {"type":"done"}\n\n'
 

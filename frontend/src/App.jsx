@@ -156,6 +156,8 @@ function App() {
           return updated
         })
       }
+      const updatedConversations = await getConversations()
+      setConversations(updatedConversations)
     } catch (err) {
       console.error(err)
 
