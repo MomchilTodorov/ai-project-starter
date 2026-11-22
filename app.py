@@ -7,6 +7,8 @@ from typing import Literal
 
 from ai_client import stream_gemini
 
+from policy_demo import answer_policy_question
+
 from product_tools import get_product
 
 from contextlib import asynccontextmanager
@@ -152,3 +154,11 @@ def product_price(product_id: int = Path(gt=0)):
         "price": product["price"],
         "currency": product["currency"],
     }
+
+class PolicyQuestionRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=10000)
+
+
+@app.post("/policy/answer")
+def policy_answer(request: PolicyQuestionRequest) -> dict[str, str | None]:
+    return answer_policy_question(request.question)
