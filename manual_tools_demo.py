@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from product_tools import get_product
+from tool_execution import ToolExecutionError, execute_tool_call
 
 load_dotenv()
 
@@ -52,34 +52,26 @@ def run_demo():
         calls = response.function_calls or []
 
         if not calls:
-            print("Gemini answered without using a tool:")
-            print(response.text)
+            print("I couldn't verify the price in the catalog.")
             return
 
-        # 3. Execute only approved functionsrole
+        # 3. Execute approved tool calls
         tool_results = []
 
         for call in calls:
             print("Requested function:", call.name)
             print("Arguments:", call.args)
 
-            if call.name != "get_product":
-                raise ValueError("Unapproved function")
-
-            args = dict(call.args or {})
-
-            product_id = args.get("product_id")
-
-            if type(product_id) is not int or product_id <= 0:
-                raise ValueError("Invalid product ID")
-
-            result = get_product(product_id)
+            try:
+                result = execute_tool_call(call.name, call.args)
+            except (ValueError, ToolExecutionError) as exc:
+                raise SystemExit(f"Tool call failed: {exc}") from None
 
             print("Tool result:", result)
 
             tool_results.append(
                 types.Part.from_function_response(
-                    name="get_product",
+                    name=call.name,
                     response={"result": result}
                 )
             )

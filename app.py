@@ -1,11 +1,13 @@
 import json
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Path, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Literal
 
 from ai_client import stream_gemini
+
+from product_tools import get_product
 
 from contextlib import asynccontextmanager
 
@@ -117,10 +119,6 @@ def chat(request: ChatRequest):
 
 
 
-
-from fastapi import HTTPException
-
-
 @app.post("/conversations")
 def new_conversation():
     conversation_id = create_conversation("New Chat")
@@ -142,3 +140,15 @@ def conversation_messages(conversation_id: int):
     return {"messages": messages}
 
 
+@app.get("/products/{product_id}/price")
+def product_price(product_id: int = Path(gt=0)):
+    product = get_product(product_id)
+
+    if "error" in product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    return {
+        "product_id": product_id,
+        "price": product["price"],
+        "currency": product["currency"],
+    }

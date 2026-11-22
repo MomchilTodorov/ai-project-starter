@@ -5,6 +5,7 @@ import {
   getMessages,
   streamMessage
 } from './api'
+import ProductPriceLookup from './ProductPriceLookup'
 import './App.css'
 
 function App() {
@@ -214,7 +215,7 @@ function App() {
       <main className="chat-container">
         <h1>AI Project Starter</h1>
         <p className="subtitle">My first AI application</p>
-
+        <ProductPriceLookup />
         {error && <p className="message error">{error}</p>}
 
         <div className="messages">

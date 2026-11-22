@@ -104,3 +104,14 @@ export async function getConversations() {
 
   return data.conversations
 }
+
+export async function getProductPrice(productId) {
+  const response = await fetch(
+    `${API_BASE}/products/${encodeURIComponent(productId)}/price`
+  )
+
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error('Could not load catalog price')
+
+  return response.json()
+}
