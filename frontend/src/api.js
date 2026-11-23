@@ -115,3 +115,15 @@ export async function getProductPrice(productId) {
 
   return response.json()
 }
+
+export async function askStorePolicy(question) {
+  const response = await fetch(`${API_BASE}/policy/answer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question })
+  })
+
+  if (!response.ok) throw new Error('Could not load a policy answer')
+
+  return response.json()
+}

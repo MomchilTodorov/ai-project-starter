@@ -6,6 +6,7 @@ import {
   streamMessage
 } from './api'
 import ProductPriceLookup from './ProductPriceLookup'
+import PolicyQuestion from './PolicyQuestion'
 import './App.css'
 
 function App() {
@@ -216,6 +217,7 @@ function App() {
         <h1>AI Project Starter</h1>
         <p className="subtitle">My first AI application</p>
         <ProductPriceLookup />
+        <PolicyQuestion />
         {error && <p className="message error">{error}</p>}
 
         <div className="messages">
