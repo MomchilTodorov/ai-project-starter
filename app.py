@@ -1,4 +1,5 @@
 import json
+import logging
 
 from fastapi import FastAPI, Path, HTTPException
 from fastapi.responses import StreamingResponse
@@ -26,6 +27,8 @@ from database import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logging.basicConfig(format="%(levelname)s %(name)s %(message)s")
+    logging.getLogger("policy_demo").setLevel(logging.INFO)
     init_db()
     yield
 
@@ -162,3 +165,7 @@ class PolicyQuestionRequest(BaseModel):
 @app.post("/policy/answer")
 def policy_answer(request: PolicyQuestionRequest) -> dict[str, str | None]:
     return answer_policy_question(request.question)
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}

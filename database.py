@@ -1,8 +1,10 @@
+import os
 import sqlite3
 from pathlib import Path
 
-# Path to our SQLite database
-DB_PATH = Path(__file__).resolve().parent / "chat.db"
+
+DEFAULT_DB_PATH = Path(__file__).resolve().parent / "chat.db"
+DB_PATH = Path(os.getenv("CHAT_DB_PATH") or DEFAULT_DB_PATH)
 
 
 def get_connection():
