@@ -16,8 +16,8 @@ export default function PolicyQuestion() {
 
     try {
       setResult(await askStorePolicy(trimmedQuestion))
-    } catch {
-      setResult({ answer: 'Could not load a policy answer.', source: null })
+    } catch (error) {
+      setResult({ answer: error.message || 'Could not load a policy answer.', source: null })
     } finally {
       setLoading(false)
     }
@@ -29,6 +29,7 @@ export default function PolicyQuestion() {
       <form onSubmit={handleSubmit}>
         <input
           id="policy-question"
+          placeholder="Can I send an unused item back?"
           value={question}
           onChange={event => setQuestion(event.target.value)}
           maxLength={10000}

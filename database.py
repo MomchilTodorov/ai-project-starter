@@ -1,5 +1,7 @@
 import os
 import sqlite3
+from contextlib import closing
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -15,14 +17,24 @@ def get_connection():
 
 
 def init_db():
-    with get_connection() as connection:
+    with closing(get_connection()) as connection, connection:
+        connection.execute("BEGIN IMMEDIATE")
 
         connection.execute("""
             CREATE TABLE IF NOT EXISTS conversations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
+                visitor_id TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+
+        columns = connection.execute("PRAGMA table_info(conversations)")
+        if not any(column["name"] == "visitor_id" for column in columns):
+            connection.execute("ALTER TABLE conversations ADD COLUMN visitor_id TEXT")
+        connection.execute("""
+            CREATE INDEX IF NOT EXISTS conversations_visitor_id
+            ON conversations (visitor_id, id)
         """)
 
         connection.execute("""
@@ -38,13 +50,22 @@ def init_db():
                     ON DELETE CASCADE
             )
         """)
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS demo_usage (
+                day TEXT NOT NULL,
+                action TEXT NOT NULL,
+                visitor_id TEXT NOT NULL,
+                count INTEGER NOT NULL,
+                PRIMARY KEY (day, action, visitor_id)
+            )
+        """)
 
 
-def create_conversation(title: str):
+def create_conversation(title: str, visitor_id: str | None = None):
     with get_connection() as connection:
         cursor = connection.execute(
-            "INSERT INTO conversations (title) VALUES (?)",
-            (title,)
+            "INSERT INTO conversations (title, visitor_id) VALUES (?, ?)",
+            (title, visitor_id),
         )
         return cursor.lastrowid
 
@@ -74,26 +95,27 @@ def get_messages(conversation_id: int):
 
         return [dict(row) for row in rows]
 
-def conversation_exists(conversation_id: int) -> bool:
+def conversation_exists(conversation_id: int, visitor_id: str | None = None) -> bool:
     connection = get_connection()
     try:
         row = connection.execute(
-            "SELECT 1 FROM conversations WHERE id = ?",
-            (conversation_id,)
+            "SELECT 1 FROM conversations WHERE id = ? AND visitor_id IS ?",
+            (conversation_id, visitor_id),
         ).fetchone()
         return row is not None
     finally:
         connection.close()
 
-def get_conversations():
+def get_conversations(visitor_id: str | None = None):
     connection = get_connection()
 
     try:
         rows = connection.execute("""
             SELECT id, title, created_at
             FROM conversations
+            WHERE visitor_id IS ?
             ORDER BY id DESC
-        """).fetchall()
+        """, (visitor_id,)).fetchall()
 
         return [dict(row) for row in rows]
     finally:
@@ -109,3 +131,26 @@ def update_conversation_title(conversation_id: int, title: str):
             """,
             (title, conversation_id)
         )
+
+
+def reserve_demo_slot(visitor_id: str, action: str, visitor_limit: int, site_limit: int) -> bool:
+    day = datetime.now(timezone.utc).date().isoformat()
+    with closing(get_connection()) as connection, connection:
+        connection.execute("BEGIN IMMEDIATE")
+        rows = connection.execute(
+            """SELECT visitor_id, count FROM demo_usage
+               WHERE day = ? AND action = ? AND visitor_id IN (?, '')""",
+            (day, action, visitor_id),
+        )
+        counts = {row["visitor_id"]: row["count"] for row in rows}
+        if counts.get(visitor_id, 0) >= visitor_limit or counts.get("", 0) >= site_limit:
+            return False
+
+        connection.execute("DELETE FROM demo_usage WHERE day < ?", (day,))
+        connection.executemany(
+            """INSERT INTO demo_usage (day, action, visitor_id, count)
+               VALUES (?, ?, ?, 1)
+               ON CONFLICT (day, action, visitor_id) DO UPDATE SET count = count + 1""",
+            [(day, action, visitor_id), (day, action, "")],
+        )
+        return True

@@ -58,7 +58,7 @@ function App() {
         }
       } catch (err) {
         console.error(err)
-        setError('Could not initialize the application.')
+        setError(err.message || 'Could not initialize the application.')
       } finally {
         setInitializing(false)
       }
@@ -94,7 +94,7 @@ function App() {
       )
     } catch (err) {
       console.error(err)
-      setError('Could not create conversation.')
+      setError(err.message || 'Could not create conversation.')
     } finally {
       setLoading(false)
     }
@@ -214,8 +214,8 @@ function App() {
       </aside>
 
       <main className="chat-container">
-        <h1>AI Project Starter</h1>
-        <p className="subtitle">My first AI application</p>
+        <h1>WooCommerce Assistant</h1>
+        <p className="subtitle">Gemini chat with a sample catalog and store policies</p>
         <ProductPriceLookup />
         <PolicyQuestion />
         {error && <p className="message error">{error}</p>}
@@ -226,7 +226,7 @@ function App() {
           )}
 
           {!initializing && messages.length === 0 && (
-            <p className="empty">Ask me anything!</p>
+            <p className="empty">Try asking “What’s the price of product 123?”</p>
           )}
 
           {messages.map((item, index) => (

@@ -1,6 +1,11 @@
 
 const API_BASE = '/api'
 
+async function responseError(response, fallback) {
+  const data = await response.json().catch(() => null)
+  return new Error(typeof data?.detail === 'string' ? data.detail : fallback)
+}
+
 // Create a new conversation
 export async function createConversation() {
   const response = await fetch(`${API_BASE}/conversations`, {
@@ -8,7 +13,7 @@ export async function createConversation() {
   })
 
   if (!response.ok) {
-    throw new Error('Could not create conversation')
+    throw await responseError(response, 'Could not create conversation')
   }
 
   return response.json()
@@ -42,7 +47,7 @@ export async function* streamMessage(message, conversationId) {
   })
 
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`)
+    throw await responseError(response, `API error: ${response.status}`)
   }
 
   if (!response.body) {
@@ -123,7 +128,7 @@ export async function askStorePolicy(question) {
     body: JSON.stringify({ question })
   })
 
-  if (!response.ok) throw new Error('Could not load a policy answer')
+  if (!response.ok) throw await responseError(response, 'Could not load a policy answer')
 
   return response.json()
 }

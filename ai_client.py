@@ -10,16 +10,15 @@ from product_tools import get_product
 load_dotenv()
 
 
-def stream_gemini(message: str, history: list):
+def stream_gemini(message: str, history: list, *, demo_mode: bool = False):
 
     if os.getenv("MOCK_AI", "false").lower() == "true":
         for word in f"Mock AI response to: {message}".split():
             yield word + " "
         return
 
-    client = genai.Client(
-        api_key=os.environ["GEMINI_API_KEY"]
-    )
+    key_name = "PUBLIC_DEMO_GEMINI_API_KEY" if demo_mode else "GEMINI_API_KEY"
+    client = genai.Client(api_key=os.environ[key_name])
 
     contents = []
 
@@ -46,13 +45,18 @@ def stream_gemini(message: str, history: list):
             contents=contents,
             config=types.GenerateContentConfig(
                 tools=[get_product],
+                max_output_tokens=512 if demo_mode else None,
+                automatic_function_calling=(
+                    types.AutomaticFunctionCallingConfig(maximum_remote_calls=2)
+                    if demo_mode else None
+                ),
                 system_instruction=(
                     "You are a helpful shopping assistant. "
                     "Use get_product when users ask about products "
                     "in the catalog. Never invent prices or stock."
+                ),
+            ),
         )
-    )
-)
 
         for chunk in stream:
             if chunk.text:
