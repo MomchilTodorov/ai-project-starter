@@ -1,4 +1,4 @@
-# AI WooCommerce Assistant
+# AI Store Assistant
 
 A React and FastAPI app with Gemini-powered chat, direct catalog price lookup, and store policy answers that show their source.
 

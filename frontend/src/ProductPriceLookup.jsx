@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { getProductPrice } from './api'
 
+const exampleProducts = [
+  { id: '123', name: 'Wireless Mouse' },
+  { id: '124', name: 'Mechanical Keyboard' },
+]
+
 export default function ProductPriceLookup() {
   const [productId, setProductId] = useState('')
   const [status, setStatus] = useState('')
@@ -31,9 +36,28 @@ export default function ProductPriceLookup() {
   return (
     <section aria-label="Catalog price lookup">
       <label htmlFor="catalog-product-id">Product ID</label>
+      <p className="tool-description" id="catalog-description">
+        Check price reads from the sample catalog. In chat, Gemini can ask the server to look up a price.
+      </p>
+      <div className="tool-examples" role="group" aria-label="Example products">
+        {exampleProducts.map(({ id, name }) => (
+          <button
+            key={id}
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              setProductId(id)
+              setStatus('')
+            }}
+          >
+            {name} ({id})
+          </button>
+        ))}
+      </div>
       <form onSubmit={handleSubmit}>
         <input
           id="catalog-product-id"
+          aria-describedby="catalog-description"
           type="text"
           inputMode="numeric"
           pattern="[1-9][0-9]*"

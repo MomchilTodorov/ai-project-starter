@@ -9,6 +9,8 @@ import ProductPriceLookup from './ProductPriceLookup'
 import PolicyQuestion from './PolicyQuestion'
 import './App.css'
 
+const priceExample = 'What’s the price of product 123?'
+
 function App() {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
@@ -19,6 +21,7 @@ function App() {
   const [error, setError] = useState('')
 
   const messagesEndRef = useRef(null)
+  const messageInputRef = useRef(null)
   const initializedRef = useRef(false)
 
   // Load existing conversations when the application starts
@@ -214,51 +217,95 @@ function App() {
       </aside>
 
       <main className="chat-container">
-        <h1>WooCommerce Assistant</h1>
-        <p className="subtitle">Gemini chat with a sample catalog and store policies</p>
-        <ProductPriceLookup />
-        <PolicyQuestion />
+        <h1>AI Store Assistant</h1>
+        <p className="subtitle">
+          Chat with Gemini, check product prices, and get policy answers with sources. Uses sample store data.
+        </p>
+        <details className="demo-guide">
+          <summary>How the demo works</summary>
+          <ol>
+            <li>
+              <strong>Check a price.</strong> Pick Wireless Mouse (123) and click Check price.
+              You’ll see €29.99 from the sample catalog.
+            </li>
+            <li>
+              <strong>Ask Gemini in chat.</strong> Send “{priceExample}” to try it.
+              Gemini can ask the Python server to check the catalog, then use the price it gets back.
+              That’s <strong>tool calling</strong>.
+            </li>
+            <li>
+              <strong>Ask about a store rule.</strong> Pick “Can I send an unused item back?”
+              and click Ask about policies. Python finds the returns rule and Gemini uses it to answer.
+              That’s <strong>retrieval-augmented generation (RAG)</strong>.
+              You’ll see the policy name below the answer.
+            </li>
+          </ol>
+        </details>
         {error && <p className="message error">{error}</p>}
 
-        <div className="messages">
-          {initializing && (
-            <p className="empty">Loading conversations...</p>
-          )}
-
-          {!initializing && messages.length === 0 && (
-            <p className="empty">Try asking “What’s the price of product 123?”</p>
-          )}
-
-          {messages.map((item, index) => (
-            <div
-              key={index}
-              className={`message ${item.role}`}
-            >
-              {item.text || (
-                <span className="loading">Thinking...</span>
+        <div className="assistant-workspace">
+          <section aria-label="Assistant chat">
+            <div className="messages">
+              {initializing && (
+                <p className="empty">Loading conversations...</p>
               )}
+
+              {!initializing && messages.length === 0 && (
+                <div className="tool-examples chat-example">
+                  <p className="empty">Try asking</p>
+                  <button
+                    type="button"
+                    disabled={loading || !conversationId}
+                    onClick={() => {
+                      setMessage(priceExample)
+                      messageInputRef.current?.focus()
+                    }}
+                  >
+                    {priceExample}
+                  </button>
+                </div>
+              )}
+
+              {messages.map((item, index) => (
+                <div
+                  key={index}
+                  className={`message ${item.role}`}
+                >
+                  {item.text || (
+                    <span className="loading">Thinking...</span>
+                  )}
+                </div>
+              ))}
+
+              <div ref={messagesEndRef} />
             </div>
-          ))}
 
-          <div ref={messagesEndRef} />
+            <form onSubmit={handleSubmit}>
+              <input
+                ref={messageInputRef}
+                type="text"
+                aria-label="Chat message"
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder="Type your message..."
+                disabled={loading || initializing || !conversationId}
+              />
+
+              <button
+                type="submit"
+                disabled={loading || initializing || !conversationId}
+              >
+                {loading ? 'Thinking...' : 'Send'}
+              </button>
+            </form>
+          </section>
+
+          <aside className="store-tools" aria-labelledby="store-tools-heading">
+            <h2 id="store-tools-heading">Store tools</h2>
+            <ProductPriceLookup />
+            <PolicyQuestion />
+          </aside>
         </div>
-
-        <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            placeholder="Type your message..."
-            disabled={loading || initializing || !conversationId}
-          />
-
-          <button
-            type="submit"
-            disabled={loading || initializing || !conversationId}
-          >
-            {loading ? 'Thinking...' : 'Send'}
-          </button>
-        </form>
       </main>
     </div>
   )
