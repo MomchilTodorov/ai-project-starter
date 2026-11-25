@@ -161,7 +161,11 @@ def test_public_model_calls_use_dedicated_key_and_bounded_output(
     chat_config = client.models.generate_content_stream.call_args.kwargs["config"]
     policy_config = client.models.generate_content.call_args.kwargs["config"]
     assert chat_config.max_output_tokens == policy_config.max_output_tokens == 512
-    assert chat_config.automatic_function_calling.maximum_remote_calls == 2
+    assert chat_config.automatic_function_calling.maximum_remote_calls == 3
+    assert [tool.__name__ for tool in chat_config.tools] == [
+        "get_product",
+        "lookup_store_policy",
+    ]
 
 
 def test_hosted_private_mode_still_requires_a_password(demo_config, monkeypatch):
