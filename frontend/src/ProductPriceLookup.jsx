@@ -37,7 +37,8 @@ export default function ProductPriceLookup() {
     <section aria-label="Catalog price lookup">
       <label htmlFor="catalog-product-id">Product ID</label>
       <p className="tool-description" id="catalog-description">
-        Check price reads from the sample catalog. In chat, Gemini can ask the server to look up a price.
+        Check price reads the sample catalog directly. The Python server uses the same lookup when you ask
+        “How much is product 123?” in chat.
       </p>
       <div className="tool-examples" role="group" aria-label="Example products">
         {exampleProducts.map(({ id, name }) => (

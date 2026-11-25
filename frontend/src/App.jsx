@@ -9,7 +9,7 @@ import ProductPriceLookup from './ProductPriceLookup'
 import PolicyQuestion from './PolicyQuestion'
 import './App.css'
 
-const priceExample = 'What’s the price of product 123?'
+const stockExample = 'Is product 123 in stock?'
 
 function App() {
   const [message, setMessage] = useState('')
@@ -226,11 +226,12 @@ function App() {
           <ol>
             <li>
               <strong>Check a price.</strong> Pick Wireless Mouse (123) and click Check price.
-              You’ll see €29.99 from the sample catalog.
+              You’ll see €29.99 from the sample catalog. Ask “What’s the price of product 123?”
+              in chat to get the same price directly from the Python server.
             </li>
             <li>
-              <strong>Ask Gemini in chat.</strong> Send “{priceExample}” to try it.
-              Gemini can ask the Python server to check the catalog, then use the price it gets back.
+              <strong>Ask Gemini in chat.</strong> Send “{stockExample}” to try it.
+              Gemini can ask the Python server to check stock and use the result to answer.
               That’s <strong>tool calling</strong>.
             </li>
             <li>
@@ -257,11 +258,11 @@ function App() {
                     type="button"
                     disabled={loading || !conversationId}
                     onClick={() => {
-                      setMessage(priceExample)
+                      setMessage(stockExample)
                       messageInputRef.current?.focus()
                     }}
                   >
-                    {priceExample}
+                    {stockExample}
                   </button>
                 </div>
               )}
