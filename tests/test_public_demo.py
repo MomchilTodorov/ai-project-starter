@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 from fastapi import staticfiles
 from fastapi.testclient import TestClient
+from google.genai import models, types
 
 import database
 import policy_demo
@@ -214,3 +215,64 @@ def test_chat_reports_a_missing_catalog_product(demo_config, monkeypatch):
     assert response.status_code == 200
     assert "I couldn't find product 999 in the catalog." in response.text
     gemini.assert_not_called()
+
+
+def test_chat_sends_both_tool_results_back_to_gemini(demo_config, monkeypatch):
+    policy_question = "Can I send an unused item back?"
+    expected_policy_result = {
+        "source": "Returns policy",
+        "text": "Customers can return unused items within 30 days of delivery.",
+    }
+    final_reply = (
+        "Product 123 is in stock. Unused items can be returned within 30 days of delivery."
+    )
+    model_parts = iter(
+        [
+            types.Part.from_function_call(name="get_product", args={"product_id": 123}),
+            types.Part.from_function_call(
+                name="lookup_store_policy",
+                args={"question": policy_question},
+            ),
+            types.Part.from_text(text=final_reply),
+        ]
+    )
+    requests = []
+
+    def fake_model_stream(self, *, model, contents, config):
+        requests.append(
+            {
+                part.function_response.name: part.function_response.response["result"]
+                for message in contents
+                for part in message.parts or []
+                if part.function_response is not None
+            }
+        )
+        yield types.GenerateContentResponse(
+            candidates=[
+                types.Candidate(
+                    content=types.Content(role="model", parts=[next(model_parts)])
+                )
+            ]
+        )
+
+    monkeypatch.setattr(
+        models.Models, "_generate_content_stream_with_continuation", fake_model_stream
+    )
+
+    with TestClient(load_production_app(), base_url="https://testserver") as client:
+        chat_id = client.post("/api/conversations").json()["id"]
+        response = client.post(
+            "/api/chat",
+            json={
+                "conversation_id": chat_id,
+                "message": f"Is product 123 in stock? {policy_question}",
+            },
+        )
+
+    assert response.status_code == 200
+    assert final_reply in response.text
+    assert len(requests) == 3
+    assert requests[0] == {}
+    assert requests[1]["get_product"]["stock"] == 15
+    assert requests[2]["get_product"]["stock"] == 15
+    assert requests[2]["lookup_store_policy"] == expected_policy_result
