@@ -217,15 +217,29 @@ def test_chat_reports_a_missing_catalog_product(demo_config, monkeypatch):
     gemini.assert_not_called()
 
 
-def test_chat_sends_both_tool_results_back_to_gemini(demo_config, monkeypatch):
-    policy_question = "Can I send an unused item back?"
-    expected_policy_result = {
-        "source": "Returns policy",
-        "text": "Customers can return unused items within 30 days of delivery.",
-    }
-    final_reply = (
-        "Product 123 is in stock. Unused items can be returned within 30 days of delivery."
-    )
+@pytest.mark.parametrize(
+    ("policy_question", "expected_policy_result", "policy_reply"),
+    [
+        (
+            "Can I send an unused item back?",
+            {
+                "source": "Returns policy",
+                "text": "Customers can return unused items within 30 days of delivery.",
+            },
+            "Unused items can be returned within 30 days of delivery.",
+        ),
+        (
+            "What is your gift-wrapping policy?",
+            {"error": "No matching store policy found."},
+            "I couldn't find a gift-wrapping policy.",
+        ),
+    ],
+    ids=["policy-found", "policy-missing"],
+)
+def test_chat_sends_both_tool_results_back_to_gemini(
+    demo_config, monkeypatch, policy_question, expected_policy_result, policy_reply
+):
+    final_reply = f"Product 123 is in stock. {policy_reply}"
     model_parts = iter(
         [
             types.Part.from_function_call(name="get_product", args={"product_id": 123}),
