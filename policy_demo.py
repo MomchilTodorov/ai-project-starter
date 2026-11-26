@@ -12,7 +12,7 @@ from store_policies import retrieve_policy
 logger = logging.getLogger(__name__)
 
 
-def answer_policy_question(question: str) -> dict[str, str | None]:
+def answer_policy_question(question: str, *, demo_mode: bool = False) -> dict[str, str | None]:
     policy = retrieve_policy(question)
     if policy is None:
         logger.info("Policy lookup found no match")
@@ -22,7 +22,8 @@ def answer_policy_question(question: str) -> dict[str, str | None]:
 
     load_dotenv()
     model = os.environ["GEMINI_MODEL"]
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    key_name = "PUBLIC_DEMO_GEMINI_API_KEY" if demo_mode else "GEMINI_API_KEY"
+    client = genai.Client(api_key=os.environ[key_name])
 
     try:
         started_at = perf_counter()
@@ -30,6 +31,7 @@ def answer_policy_question(question: str) -> dict[str, str | None]:
             model=model,
             contents=f"Policy text:\n{policy['text']}\n\nQuestion:\n{question}",
             config=types.GenerateContentConfig(
+                max_output_tokens=512 if demo_mode else None,
                 system_instruction=(
                     "Answer using only the supplied policy text. "
                     "If the policy doesn't answer the question, say so."

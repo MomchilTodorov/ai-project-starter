@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { askStorePolicy } from './api'
 
+const exampleQuestions = [
+  'Can I send an unused item back?',
+  'How soon will my package get here?',
+]
+
 export default function PolicyQuestion() {
   const [question, setQuestion] = useState('')
   const [result, setResult] = useState(null)
@@ -16,8 +21,8 @@ export default function PolicyQuestion() {
 
     try {
       setResult(await askStorePolicy(trimmedQuestion))
-    } catch {
-      setResult({ answer: 'Could not load a policy answer.', source: null })
+    } catch (error) {
+      setResult({ answer: error.message || 'Could not load a policy answer.', source: null })
     } finally {
       setLoading(false)
     }
@@ -26,9 +31,28 @@ export default function PolicyQuestion() {
   return (
     <section aria-label="Store policy lookup">
       <label htmlFor="policy-question">Store policy question</label>
+      <p className="tool-description" id="policy-description">
+        Python finds the relevant policy. Gemini answers from that text. You’ll see the policy name below the answer.
+      </p>
+      <div className="tool-examples" role="group" aria-label="Example policy questions">
+        {exampleQuestions.map(example => (
+          <button
+            key={example}
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              setQuestion(example)
+              setResult(null)
+            }}
+          >
+            {example}
+          </button>
+        ))}
+      </div>
       <form onSubmit={handleSubmit}>
         <input
           id="policy-question"
+          aria-describedby="policy-description"
           value={question}
           onChange={event => setQuestion(event.target.value)}
           maxLength={10000}
