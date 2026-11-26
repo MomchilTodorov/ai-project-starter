@@ -43,6 +43,16 @@ From the project root:
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
+## Evaluate Gemini chat tool use
+
+From the project root with `GEMINI_API_KEY` and `GEMINI_MODEL` configured in your local `.env`, run:
+
+```powershell
+.\.venv\Scripts\python.exe -m evaluate_chat_tools
+```
+
+The script sends three live questions about stock and store policies, each with a fresh chat history. It prints the answer and response time for each case, followed by the number of cases that passed. Read any answer marked `REVIEW` to see whether a fact is missing or the wording differs from the phrase checks.
+
 ## Deploy the public portfolio demo on Render
 
 Use the repository's Dockerfile and set the service's health check path to `/api/health`.
