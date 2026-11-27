@@ -51,7 +51,13 @@ From the project root with `GEMINI_API_KEY` and `GEMINI_MODEL` configured in you
 .\.venv\Scripts\python.exe -m evaluate_chat_tools
 ```
 
-The script sends three live questions about stock and store policies, each with a fresh chat history. It prints the answer and response time for each case, followed by the number of cases that passed. Read any answer marked `REVIEW` to see whether a fact is missing or the wording differs from the phrase checks.
+The script sends three live questions about stock and store policies, each with a fresh chat history. It prints the answer and response time for each case, followed by the number of cases that passed. For an answer marked `REVIEW`, use the listed checks to see whether a fact is missing or the wording differs from the phrase checks.
+
+Save the answers, response times, and checks as JSON when you want to compare runs:
+
+```powershell
+.\.venv\Scripts\python.exe -m evaluate_chat_tools --output baseline.json
+```
 
 ## Deploy the public portfolio demo on Render
 

@@ -1,4 +1,7 @@
+import argparse
+import json
 import re
+from pathlib import Path
 from time import perf_counter
 
 from ai_client import stream_gemini
@@ -43,8 +46,8 @@ def missing_checks(answer: str, checks: tuple[tuple[str, str], ...]) -> list[str
     return [label for label, pattern in checks if not re.search(pattern, normalized)]
 
 
-def evaluate():
-    passed_count = 0
+def evaluate(output_path: Path | None = None) -> int:
+    results = []
 
     for question, checks in CASES:
         started = perf_counter()
@@ -52,7 +55,14 @@ def evaluate():
         elapsed = perf_counter() - started
 
         missing = missing_checks(answer, checks)
-        passed_count += int(not missing)
+        results.append(
+            {
+                "question": question,
+                "answer": answer,
+                "elapsed_seconds": round(elapsed, 3),
+                "missing_checks": missing,
+            }
+        )
 
         status = "REVIEW" if missing else "PASS"
         print(f"{status}  {question} ({elapsed:.2f} s)")
@@ -60,9 +70,20 @@ def evaluate():
             print(f"  Checks to review: {', '.join(missing)}")
         print(f"  {answer}\n")
 
-    print(f"Passed {passed_count}/{len(CASES)} checks.")
+    passed_count = sum(not result["missing_checks"] for result in results)
+    print(f"Passed {passed_count}/{len(results)} checks.")
+
+    if output_path is not None:
+        report = {"passed": passed_count, "total": len(results), "cases": results}
+        output_path.write_text(
+            json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        print(f"Saved evaluation to {output_path}")
+
     return passed_count
 
 
 if __name__ == "__main__":
-    evaluate()
+    parser = argparse.ArgumentParser(description="Evaluate Gemini chat tool use.")
+    parser.add_argument("--output", type=Path, help="Save the evaluation as JSON.")
+    evaluate(parser.parse_args().output)
