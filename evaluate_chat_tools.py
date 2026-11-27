@@ -12,8 +12,8 @@ RETURNS = (
     r"\bdelivery\b",
 )
 POLICY_MISSING = (
-    r"\b(?:unable to verify|could not find|couldn't find|"
-    r"cannot confirm|can't confirm|no matching (?:store )?policy)\b"
+    r"\b(?:(?:unable to|could not|couldn't|cannot|can't) (?:verify|find|confirm)"
+    r"|no matching (?:store )?policy)\b"
 )
 PRODUCT_MISSING = (
     r"\b(?:not (?:be )?found|unable to find|could not find|couldn't find|"
