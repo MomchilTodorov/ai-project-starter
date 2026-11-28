@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from time import perf_counter
 
-from ai_client import stream_gemini
+from ai_client import review_chat_answer, stream_gemini
 
 
 STOCK = ("15 units available", r"\b15\s+(?:units?|items?|available)\b")
@@ -46,12 +46,17 @@ def missing_checks(answer: str, checks: tuple[tuple[str, str], ...]) -> list[str
     return [label for label, pattern in checks if not re.search(pattern, normalized)]
 
 
-def evaluate(output_path: Path | None = None) -> int:
+def evaluate(output_path: Path | None = None, *, review: bool = False) -> int:
     results = []
 
     for question, checks in CASES:
         started = perf_counter()
-        answer = "".join(stream_gemini(question, []))
+        if review:
+            tool_results = []
+            draft = "".join(stream_gemini(question, [], tool_results=tool_results))
+            answer = review_chat_answer(question, draft, tool_results)
+        else:
+            answer = "".join(stream_gemini(question, []))
         elapsed = perf_counter() - started
 
         missing = missing_checks(answer, checks)
@@ -86,4 +91,6 @@ def evaluate(output_path: Path | None = None) -> int:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate Gemini chat tool use.")
     parser.add_argument("--output", type=Path, help="Save the evaluation as JSON.")
-    evaluate(parser.parse_args().output)
+    parser.add_argument("--review", action="store_true", help="Run the second-agent review.")
+    args = parser.parse_args()
+    evaluate(args.output, review=args.review)

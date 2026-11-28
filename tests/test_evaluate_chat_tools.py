@@ -1,4 +1,5 @@
 import json
+from unittest.mock import Mock
 
 import pytest
 
@@ -57,3 +58,26 @@ def test_evaluation_saves_pass_and_review_cases(tmp_path, monkeypatch):
     assert report["cases"][1]["missing_checks"] == ["missing policy acknowledged"]
     assert "Gift-wrapping costs EUR 5." in report["cases"][1]["answer"]
     assert report["cases"][1]["elapsed_seconds"] >= 0
+
+
+def test_review_mode_checks_the_revised_answer(monkeypatch, capsys):
+    question, checks = CASES[1]
+    monkeypatch.setattr("evaluate_chat_tools.CASES", [(question, checks)])
+    evidence = [
+        {"name": "get_product", "result": {"stock": 15}},
+        {"name": "lookup_store_policy", "result": {"error": "No matching store policy found."}},
+    ]
+    draft = "Product 123 has 15 units available. Gift-wrapping costs EUR 5."
+    revised = "Product 123 has 15 units available. I could not verify the gift-wrapping policy."
+
+    def draft_stream(question, history, *, tool_results):
+        tool_results.extend(evidence)
+        yield draft
+
+    reviewer = Mock(return_value=revised)
+    monkeypatch.setattr("evaluate_chat_tools.stream_gemini", draft_stream)
+    monkeypatch.setattr("evaluate_chat_tools.review_chat_answer", reviewer)
+
+    assert evaluate(review=True) == 1
+    reviewer.assert_called_once_with(question, draft, evidence)
+    assert revised in capsys.readouterr().out
