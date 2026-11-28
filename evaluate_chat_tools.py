@@ -48,38 +48,63 @@ def missing_checks(answer: str, checks: tuple[tuple[str, str], ...]) -> list[str
 
 def evaluate(output_path: Path | None = None, *, review: bool = False) -> int:
     results = []
+    draft_passed_count = 0
 
     for question, checks in CASES:
         started = perf_counter()
         if review:
             tool_results = []
             draft = "".join(stream_gemini(question, [], tool_results=tool_results))
+            draft_finished = perf_counter()
             answer = review_chat_answer(question, draft, tool_results)
         else:
             answer = "".join(stream_gemini(question, []))
-        elapsed = perf_counter() - started
+        finished = perf_counter()
+        elapsed = finished - started
 
         missing = missing_checks(answer, checks)
-        results.append(
-            {
-                "question": question,
-                "answer": answer,
-                "elapsed_seconds": round(elapsed, 3),
-                "missing_checks": missing,
-            }
-        )
+        result = {
+            "question": question,
+            "answer": answer,
+            "elapsed_seconds": round(elapsed, 3),
+            "missing_checks": missing,
+        }
 
         status = "REVIEW" if missing else "PASS"
         print(f"{status}  {question} ({elapsed:.2f} s)")
+        if review:
+            draft_elapsed = draft_finished - started
+            review_elapsed = finished - draft_finished
+            draft_missing = missing_checks(draft, checks)
+            draft_passed_count += int(not draft_missing)
+            result["draft"] = {
+                "answer": draft,
+                "elapsed_seconds": round(draft_elapsed, 3),
+                "missing_checks": draft_missing,
+            }
+            result["review_seconds"] = round(review_elapsed, 3)
+            result["tool_results"] = tool_results
+            draft_status = "REVIEW" if draft_missing else "PASS"
+            print(
+                f"  Draft: {draft_status} ({draft_elapsed:.2f} s). "
+                f"Reviewer added {review_elapsed:.2f} s."
+            )
+            if draft_missing:
+                print(f"  Draft checks to review: {', '.join(draft_missing)}")
         if missing:
             print(f"  Checks to review: {', '.join(missing)}")
         print(f"  {answer}\n")
+        results.append(result)
 
     passed_count = sum(not result["missing_checks"] for result in results)
+    if review:
+        print(f"Drafts passed {draft_passed_count}/{len(results)} checks before review.")
     print(f"Passed {passed_count}/{len(results)} checks.")
 
     if output_path is not None:
         report = {"passed": passed_count, "total": len(results), "cases": results}
+        if review:
+            report["draft_passed"] = draft_passed_count
         output_path.write_text(
             json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )

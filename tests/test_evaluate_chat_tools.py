@@ -60,7 +60,7 @@ def test_evaluation_saves_pass_and_review_cases(tmp_path, monkeypatch):
     assert report["cases"][1]["elapsed_seconds"] >= 0
 
 
-def test_review_mode_checks_the_revised_answer(monkeypatch, capsys):
+def test_review_mode_compares_the_draft_and_revised_answer(monkeypatch, capsys, tmp_path):
     question, checks = CASES[1]
     monkeypatch.setattr("evaluate_chat_tools.CASES", [(question, checks)])
     evidence = [
@@ -77,7 +77,28 @@ def test_review_mode_checks_the_revised_answer(monkeypatch, capsys):
     reviewer = Mock(return_value=revised)
     monkeypatch.setattr("evaluate_chat_tools.stream_gemini", draft_stream)
     monkeypatch.setattr("evaluate_chat_tools.review_chat_answer", reviewer)
+    monkeypatch.setattr(
+        "evaluate_chat_tools.perf_counter", iter([10.0, 11.25, 12.0]).__next__
+    )
+    output = tmp_path / "review.json"
 
-    assert evaluate(review=True) == 1
+    assert evaluate(output, review=True) == 1
     reviewer.assert_called_once_with(question, draft, evidence)
-    assert revised in capsys.readouterr().out
+    console = capsys.readouterr().out
+    assert revised in console
+    assert "Draft: REVIEW (1.25 s). Reviewer added 0.75 s." in console
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["draft_passed"] == 0
+    assert report["passed"] == 1
+    case = report["cases"][0]
+    assert case["draft"] == {
+        "answer": draft,
+        "elapsed_seconds": 1.25,
+        "missing_checks": ["missing policy acknowledged"],
+    }
+    assert case["answer"] == revised
+    assert case["missing_checks"] == []
+    assert case["elapsed_seconds"] == 2.0
+    assert case["review_seconds"] == 0.75
+    assert case["tool_results"] == evidence

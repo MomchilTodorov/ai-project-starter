@@ -59,6 +59,14 @@ Save the answers, response times, and checks as JSON when you want to compare ru
 .\.venv\Scripts\python.exe -m evaluate_chat_tools --output baseline.json
 ```
 
+To compare each draft with a second Gemini call that reviews it against the tool results from that same run, add `--review`:
+
+```powershell
+.\.venv\Scripts\python.exe -m evaluate_chat_tools --review --output review.json
+```
+
+This mode adds one Gemini request per question. The report includes both answers, the checks each passed, the tool results, and the time the reviewer added. Use the printed checks and read the replies when assessing whether the reviewer helped.
+
 ## Deploy the public portfolio demo on Render
 
 Use the repository's Dockerfile and set the service's health check path to `/api/health`.
