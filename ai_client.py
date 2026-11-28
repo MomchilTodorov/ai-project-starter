@@ -10,7 +10,13 @@ from store_policies import lookup_store_policy
 load_dotenv()
 
 
-def stream_gemini(message: str, history: list, *, demo_mode: bool = False):
+def stream_gemini(
+    message: str,
+    history: list,
+    *,
+    demo_mode: bool = False,
+    tool_results: list[dict[str, object]] | None = None,
+):
 
     if os.getenv("MOCK_AI", "false").lower() == "true":
         for word in f"Mock AI response to: {message}".split():
@@ -56,9 +62,23 @@ def stream_gemini(message: str, history: list, *, demo_mode: bool = False):
             ),
         )
 
+        tool_history = []
         for chunk in stream:
-            if chunk.text:
-                yield chunk.text
+            if tool_results is not None and chunk.automatic_function_calling_history:
+                tool_history = chunk.automatic_function_calling_history
+            text = chunk.text
+            if text:
+                yield text
+
+        if tool_results is not None:
+            for turn in tool_history:
+                for part in turn.parts or []:
+                    response = part.function_response
+                    if response is not None:
+                        payload = response.response or {}
+                        tool_results.append(
+                            {"name": response.name, "result": payload.get("result", payload)}
+                        )
 
     finally:
         client.close()
